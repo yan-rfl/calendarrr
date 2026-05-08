@@ -9,3 +9,6 @@ export function formatEventTime(isoDate: string): string {
     hour: 'numeric', minute: '2-digit', hour12: true,
   })
 }
+
+export { parseWhatsAppMessage } from './whatsapp-parser'
+export type { ParseResult } from './whatsapp-parser'

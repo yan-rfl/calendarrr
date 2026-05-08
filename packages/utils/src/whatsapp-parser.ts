@@ -1,0 +1,72 @@
+export type ParseResult =
+  | { type: 'create'; name: string; start_at: Date; detail?: string }
+  | { type: 'list_today' }
+  | { type: 'list_date'; date: string }
+  | { type: 'list_upcoming' }
+  | { type: 'update'; name: string; start_at: Date }
+  | { type: 'remind'; name: string; offset_minutes: number }
+  | { type: 'delete'; name: string }
+  | { type: 'help' }
+  | { type: 'unknown'; raw: string }
+
+export function parseWhatsAppMessage(text: string, now: Date = new Date()): ParseResult {
+  const t = text.trim()
+  const lower = t.toLowerCase()
+
+  if (lower === 'help') return { type: 'help' }
+  if (lower === 'today' || lower === 'list today') return { type: 'list_today' }
+  if (lower === 'upcoming' || lower === 'next') return { type: 'list_upcoming' }
+
+  const listDate = t.match(/^list\s+(\d{4}-\d{2}-\d{2})$/i)
+  if (listDate) return { type: 'list_date', date: listDate[1] }
+
+  const del = t.match(/^delete\s+(.+)$/i)
+  if (del) return { type: 'delete', name: del[1].trim() }
+
+  const upd = t.match(/^update\s+(.+?)\s+to\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/i)
+  if (upd) return { type: 'update', name: upd[1].trim(), start_at: new Date(`${upd[2]}T${upd[3]}:00`) }
+
+  const remind = t.match(/^remind\s+(.+?)\s+(\d+)\s+(min(?:utes?)?|hours?)\s+before$/i)
+  if (remind) {
+    const n = parseInt(remind[2])
+    const offset_minutes = remind[3].toLowerCase().startsWith('h') ? -(n * 60) : -n
+    return { type: 'remind', name: remind[1].trim(), offset_minutes }
+  }
+
+  const structured = t.match(/^(.+?)_(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:_(.+))?$/)
+  if (structured) {
+    return {
+      type: 'create',
+      name: structured[1].trim(),
+      start_at: new Date(`${structured[2]}T${structured[3]}:00`),
+      ...(structured[4] ? { detail: structured[4].trim() } : {}),
+    }
+  }
+
+  const todayAt = t.match(/^(.+?)_Today at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  if (todayAt) return { type: 'create', name: todayAt[1].trim(), start_at: parseLocalTime(todayAt[2], todayAt[3], now, 0) }
+
+  const tomorrowAt = t.match(/^(.+?)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  if (tomorrowAt) return { type: 'create', name: tomorrowAt[1].trim(), start_at: parseLocalTime(tomorrowAt[2], tomorrowAt[3], now, 1) }
+
+  const inRelative = t.match(/^(.+?)_In (a|\d+)\s+(minutes?|hours?)$/i)
+  if (inRelative) {
+    const n = inRelative[2].toLowerCase() === 'a' ? 1 : parseInt(inRelative[2])
+    const ms = inRelative[3].toLowerCase().startsWith('h') ? n * 3600000 : n * 60000
+    return { type: 'create', name: inRelative[1].trim(), start_at: new Date(now.getTime() + ms) }
+  }
+
+  return { type: 'unknown', raw: t }
+}
+
+function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset: number): Date {
+  const [hStr, mStr] = timeStr.split(':')
+  let h = parseInt(hStr)
+  const m = parseInt(mStr)
+  if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12
+  if (meridiem.toUpperCase() === 'AM' && h === 12) h = 0
+  const d = new Date(base)
+  d.setDate(d.getDate() + dayOffset)
+  d.setHours(h, m, 0, 0)
+  return d
+}
