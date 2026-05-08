@@ -17,6 +17,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@calendarrr/db':
+        specifier: workspace:^
+        version: link:../../packages/db
       '@calendarrr/types':
         specifier: workspace:^
         version: link:../../packages/types

@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@calendarrr/db": "workspace:^",
     "@calendarrr/types": "workspace:^",
     "@calendarrr/utils": "workspace:^",
     "@supabase/ssr": "^0.10.3",
