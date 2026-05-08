@@ -33,7 +33,7 @@ export function parseWhatsAppMessage(text: string, now: Date = new Date()): Pars
     return { type: 'remind', name: remind[1].trim(), offset_minutes }
   }
 
-  const structured = t.match(/^(.+?)_(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:_(.+))?$/)
+  const structured = t.match(/^(.+)_(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:_(.+))?$/)
   if (structured) {
     return {
       type: 'create',
@@ -43,13 +43,13 @@ export function parseWhatsAppMessage(text: string, now: Date = new Date()): Pars
     }
   }
 
-  const todayAt = t.match(/^(.+?)_Today at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  const todayAt = t.match(/^(.+)_Today at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
   if (todayAt) return { type: 'create', name: todayAt[1].trim(), start_at: parseLocalTime(todayAt[2], todayAt[3], now, 0) }
 
-  const tomorrowAt = t.match(/^(.+?)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  const tomorrowAt = t.match(/^(.+)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
   if (tomorrowAt) return { type: 'create', name: tomorrowAt[1].trim(), start_at: parseLocalTime(tomorrowAt[2], tomorrowAt[3], now, 1) }
 
-  const inRelative = t.match(/^(.+?)_In (a|\d+)\s+(minutes?|hours?)$/i)
+  const inRelative = t.match(/^(.+)_In (a|\d+)\s+(minutes?|hours?)$/i)
   if (inRelative) {
     const n = inRelative[2].toLowerCase() === 'a' ? 1 : parseInt(inRelative[2])
     const ms = inRelative[3].toLowerCase().startsWith('h') ? n * 3600000 : n * 60000
