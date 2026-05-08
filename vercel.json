@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/jobs/sync-calendars", "schedule": "*/15 * * * *" },
+    { "path": "/api/jobs/poll-imap",       "schedule": "*/5 * * * *"  }
+  ]
+}
