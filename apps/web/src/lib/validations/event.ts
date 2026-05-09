@@ -5,7 +5,7 @@ export const createEventSchema = z.object({
   detail: z.string().max(2000).optional(),
   start_at: z.string().datetime(),
   end_at: z.string().datetime().optional(),
-  source: z.enum(['manual','whatsapp','gmail','outlook','imap']).default('manual'),
+  source: z.enum(['manual','line','gmail','outlook','imap']).default('manual'),
 })
 
 export const updateEventSchema = z.object({

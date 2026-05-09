@@ -9,7 +9,7 @@ export type ParseResult =
   | { type: 'help' }
   | { type: 'unknown'; raw: string }
 
-export function parseWhatsAppMessage(text: string, now: Date = new Date()): ParseResult {
+export function parseLineMessage(text: string, now: Date = new Date()): ParseResult {
   const t = text.trim()
   const lower = t.toLowerCase()
 
@@ -23,8 +23,11 @@ export function parseWhatsAppMessage(text: string, now: Date = new Date()): Pars
   const del = t.match(/^delete\s+(.+)$/i)
   if (del) return { type: 'delete', name: del[1].trim() }
 
-  const upd = t.match(/^update\s+(.+?)\s+to\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/i)
-  if (upd) return { type: 'update', name: upd[1].trim(), start_at: new Date(`${upd[2]}T${upd[3]}:00`) }
+  const upd = t.match(/^update\s+(.+?)\s+to\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}(?::\d{2})?)\s*(AM|PM)?$/i)
+  if (upd) {
+    const hhmm = parseTimeToHHMM(upd[3], upd[4])
+    return { type: 'update', name: upd[1].trim(), start_at: new Date(`${upd[2]}T${hhmm}:00`) }
+  }
 
   const remind = t.match(/^remind\s+(.+?)\s+(\d+)\s+(min(?:utes?)?|hours?)\s+before$/i)
   if (remind) {
@@ -33,13 +36,14 @@ export function parseWhatsAppMessage(text: string, now: Date = new Date()): Pars
     return { type: 'remind', name: remind[1].trim(), offset_minutes }
   }
 
-  const structured = t.match(/^(.+)_(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:_(.+))?$/)
+  const structured = t.match(/^(.+)_(\d{4}-\d{2}-\d{2})\s+(\d{1,2}(?::\d{2})?)\s*(AM|PM)?(?:_(.+))?$/i)
   if (structured) {
+    const hhmm = parseTimeToHHMM(structured[3], structured[4])
     return {
       type: 'create',
       name: structured[1].trim(),
-      start_at: new Date(`${structured[2]}T${structured[3]}:00`),
-      ...(structured[4] ? { detail: structured[4].trim() } : {}),
+      start_at: new Date(`${structured[2]}T${hhmm}:00`),
+      ...(structured[5] ? { detail: structured[5].trim() } : {}),
     }
   }
 
@@ -59,10 +63,20 @@ export function parseWhatsAppMessage(text: string, now: Date = new Date()): Pars
   return { type: 'unknown', raw: t }
 }
 
+function parseTimeToHHMM(timeStr: string, meridiem?: string): string {
+  const parts = timeStr.split(':')
+  let h = parseInt(parts[0])
+  const m = parts[1] ? parseInt(parts[1]) : 0
+  const mer = meridiem?.toUpperCase()
+  if (mer === 'PM' && h !== 12) h += 12
+  if (mer === 'AM' && h === 12) h = 0
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+}
+
 function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset: number): Date {
   const [hStr, mStr] = timeStr.split(':')
   let h = parseInt(hStr)
-  const m = parseInt(mStr)
+  const m = mStr ? parseInt(mStr) : 0
   if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12
   if (meridiem.toUpperCase() === 'AM' && h === 12) h = 0
   const d = new Date(base)

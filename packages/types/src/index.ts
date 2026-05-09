@@ -1,4 +1,4 @@
-export type EventSource = 'manual' | 'whatsapp' | 'gmail' | 'outlook' | 'imap'
+export type EventSource = 'manual' | 'line' | 'gmail' | 'outlook' | 'imap'
 
 export interface CalendarEvent {
   id: string

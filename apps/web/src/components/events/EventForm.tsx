@@ -10,6 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type SubmitData = { name: string; detail: string; start_at: string; end_at: string }
 
+function toLocalInputValue(utcIso: string): string {
+  const d = new Date(utcIso)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
+function localInputToISO(localStr: string): string {
+  const [date, time] = localStr.split('T')
+  const [y, mo, day] = date.split('-').map(Number)
+  const [h, min] = time.split(':').map(Number)
+  return new Date(y, mo - 1, day, h, min).toISOString()
+}
+
 export function EventForm({ event, onSubmit, title }: {
   event?: CalendarEvent
   onSubmit: (d: SubmitData) => Promise<void>
@@ -19,14 +31,14 @@ export function EventForm({ event, onSubmit, title }: {
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(event?.name ?? '')
   const [detail, setDetail] = useState(event?.detail ?? '')
-  const [startAt, setStartAt] = useState(event?.start_at ? new Date(event.start_at).toISOString().slice(0, 16) : '')
-  const [endAt, setEndAt] = useState(event?.end_at ? new Date(event.end_at).toISOString().slice(0, 16) : '')
+  const [startAt, setStartAt] = useState(event?.start_at ? toLocalInputValue(event.start_at) : '')
+  const [endAt, setEndAt] = useState(event?.end_at ? toLocalInputValue(event.end_at) : '')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     try {
-      await onSubmit({ name, detail: detail ?? '', start_at: new Date(startAt).toISOString(), end_at: endAt ? new Date(endAt).toISOString() : '' })
+      await onSubmit({ name, detail: detail ?? '', start_at: localInputToISO(startAt), end_at: endAt ? localInputToISO(endAt) : '' })
       router.push('/')
       router.refresh()
     } finally { setLoading(false) }

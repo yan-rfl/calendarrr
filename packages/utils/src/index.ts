@@ -10,5 +10,5 @@ export function formatEventTime(isoDate: string): string {
   })
 }
 
-export { parseWhatsAppMessage } from './whatsapp-parser'
-export type { ParseResult } from './whatsapp-parser'
+export { parseLineMessage } from './line-parser'
+export type { ParseResult } from './line-parser'

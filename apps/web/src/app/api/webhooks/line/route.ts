@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@calendarrr/db'
-import { parseWhatsAppMessage, type ParseResult } from '@calendarrr/utils'
+import { parseLineMessage, type ParseResult } from '@calendarrr/utils'
 import { sendLineMessage, verifyLineSignature } from '@/lib/line'
 import { generateNotificationQueue } from '@/lib/notifications'
 import Anthropic from '@anthropic-ai/sdk'
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       continue
     }
 
-    let parsed = parseWhatsAppMessage(text)
+    let parsed = parseLineMessage(text)
     if (parsed.type === 'unknown') parsed = await nlpFallback(text)
 
     await executeCommand(supabase, session.user_id, lineUserId, parsed)
@@ -121,7 +121,7 @@ Today's date: ${new Date().toISOString().slice(0, 10)}`,
       }],
     })
     const reply = (msg.content[0] as { text: string }).text.trim()
-    return parseWhatsAppMessage(reply)
+    return parseLineMessage(reply)
   } catch {
     return { type: 'unknown', raw: text }
   }
@@ -134,20 +134,30 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
     case 'help': {
       await sendLineMessage(lineUserId, [
         '📅 CalendaRRR Commands',
+        '━━━━━━━━━━━━━━━━━━━━',
         '',
-        'Create: Name_YYYY-MM-DD HH:MM',
-        'With detail: Name_YYYY-MM-DD HH:MM_Detail',
-        'Today: Name_Today at H:MM AM/PM',
-        'Tomorrow: Name_Tomorrow at H:MM AM/PM',
-        'Relative: Name_In N minutes/hours',
+        '📝 CREATE EVENT',
+        'Name_2026-05-10 13:00',
+        'Name_2026-05-10 1:00 PM',
+        'Name_2026-05-10 1 PM',
+        'Name_2026-05-10 13:00_Detail',
+        'Name_Today at 2:30 PM',
+        'Name_Tomorrow at 9:00 AM',
+        'Name_In 30 minutes',
+        'Name_In 2 hours',
         '',
-        'List today: today',
-        'List date: list YYYY-MM-DD',
-        'Upcoming: upcoming',
+        '━━━━━━━━━━━━━━━━━━━━',
+        '📋 VIEW EVENTS',
+        'today',
+        'upcoming',
+        'list 2026-05-10',
         '',
-        'Update: update Name to YYYY-MM-DD HH:MM',
-        'Delete: delete Name',
-        'Reminder: remind Name N min/hour before',
+        '━━━━━━━━━━━━━━━━━━━━',
+        '✏️ MANAGE EVENTS',
+        'update Name to 2026-05-10 13:00',
+        'delete Name',
+        'remind Name 30 min before',
+        'remind Name 1 hour before',
       ].join('\n'))
       break
     }
@@ -196,7 +206,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
         name: parsed.name,
         start_at: parsed.start_at.toISOString(),
         detail: parsed.detail ?? null,
-        source: 'whatsapp',
+        source: 'line',
       }).select().single()
       if (error || !event) { await sendLineMessage(lineUserId, '❌ Failed to create event.'); break }
       await generateNotificationQueue(supabase, userId, event.id, event.start_at)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseWhatsAppMessage } from './whatsapp-parser'
+import { parseLineMessage as parseWhatsAppMessage } from './line-parser'
 
 const NOW = new Date('2026-05-08T10:00:00.000Z')
 
@@ -43,14 +43,29 @@ describe('delete', () => {
 })
 
 describe('update', () => {
-  it('parses update to datetime', () => {
+  it('parses update to datetime 24H', () => {
     const result = parseWhatsAppMessage('update Dentist to 2026-05-10 14:00', NOW)
     expect(result.type).toBe('update')
     if (result.type === 'update') {
       expect(result.name).toBe('Dentist')
-      expect(result.start_at.getFullYear()).toBe(2026)
-      expect(result.start_at.getMonth()).toBe(4)
-      expect(result.start_at.getDate()).toBe(10)
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.start_at.getMinutes()).toBe(0)
+    }
+  })
+  it('parses update to datetime 12H with minutes', () => {
+    const result = parseWhatsAppMessage('update Dentist to 2026-05-10 2:00 PM', NOW)
+    expect(result.type).toBe('update')
+    if (result.type === 'update') {
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.start_at.getMinutes()).toBe(0)
+    }
+  })
+  it('parses update to datetime 12H without minutes', () => {
+    const result = parseWhatsAppMessage('update Dentist to 2026-05-10 2 PM', NOW)
+    expect(result.type).toBe('update')
+    if (result.type === 'update') {
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.start_at.getMinutes()).toBe(0)
     }
   })
 })
@@ -75,21 +90,59 @@ describe('remind', () => {
 })
 
 describe('create structured', () => {
-  it('parses Name_date time', () => {
+  it('parses Name_date time 24H', () => {
     const result = parseWhatsAppMessage('Dentist_2026-05-10 14:00', NOW)
     expect(result.type).toBe('create')
     if (result.type === 'create') {
       expect(result.name).toBe('Dentist')
+      expect(result.start_at.getHours()).toBe(14)
       expect(result.detail).toBeUndefined()
     }
   })
-  it('parses Name_date time_detail', () => {
+  it('parses Name_date time_detail 24H', () => {
     const result = parseWhatsAppMessage('Dentist_2026-05-10 14:00_Bring X-rays', NOW)
     expect(result.type).toBe('create')
     if (result.type === 'create') {
       expect(result.name).toBe('Dentist')
       expect(result.detail).toBe('Bring X-rays')
     }
+  })
+  it('parses Name_date time 12H with minutes', () => {
+    const result = parseWhatsAppMessage('Dentist_2026-05-10 2:00 PM', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') {
+      expect(result.name).toBe('Dentist')
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.start_at.getMinutes()).toBe(0)
+    }
+  })
+  it('parses Name_date time 12H without minutes', () => {
+    const result = parseWhatsAppMessage('Dentist_2026-05-10 2 PM', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') {
+      expect(result.name).toBe('Dentist')
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.start_at.getMinutes()).toBe(0)
+    }
+  })
+  it('parses Name_date time_detail 12H', () => {
+    const result = parseWhatsAppMessage('Dentist_2026-05-10 2 PM_Bring X-rays', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') {
+      expect(result.name).toBe('Dentist')
+      expect(result.start_at.getHours()).toBe(14)
+      expect(result.detail).toBe('Bring X-rays')
+    }
+  })
+  it('parses 12 AM as midnight', () => {
+    const result = parseWhatsAppMessage('Event_2026-05-10 12:00 AM', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') expect(result.start_at.getHours()).toBe(0)
+  })
+  it('parses 12 PM as noon', () => {
+    const result = parseWhatsAppMessage('Event_2026-05-10 12:00 PM', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') expect(result.start_at.getHours()).toBe(12)
   })
 })
 

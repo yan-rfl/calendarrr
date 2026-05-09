@@ -19,7 +19,7 @@ export async function generateNotificationQueue(
       event_id: eventId,
       user_id: userId,
       scheduled_at: new Date(startMs + r.offset_minutes * 60000).toISOString(),
-      channel: 'whatsapp' as const,
+      channel: 'line',
     }))
   )
 }
