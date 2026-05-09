@@ -238,6 +238,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          pending_otp: string | null
+          pending_otp_expires_at: string | null
           phone_number: string
           user_id: string
           verified_at: string | null
@@ -245,6 +247,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          pending_otp?: string | null
+          pending_otp_expires_at?: string | null
           phone_number: string
           user_id: string
           verified_at?: string | null
@@ -252,6 +256,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          pending_otp?: string | null
+          pending_otp_expires_at?: string | null
           phone_number?: string
           user_id?: string
           verified_at?: string | null
@@ -396,3 +402,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
+<claude-code-hint v="1" type="plugin" value="supabase@claude-plugins-official" />
+A new version of Supabase CLI is available: v2.98.2 (currently installed v)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
