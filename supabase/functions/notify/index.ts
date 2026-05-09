@@ -18,10 +18,11 @@ async function sendMessage(lineUserId: string, text: string): Promise<void> {
   if (!res.ok) throw new Error(`LINE error ${res.status}`)
 }
 
-function formatMessage(name: string, startAt: string, detail: string | null): string {
+function formatMessage(name: string, startAt: string, detail: string | null, timezone: string): string {
   const d = new Date(startAt)
-  const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const tz = { timeZone: timezone }
+  const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...tz })
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, ...tz })
   return [`⏰ Reminder: ${name}`, `📅 ${dateStr} at ${timeStr}`, detail ? `📝 ${detail}` : null]
     .filter(Boolean).join('\n')
 }
@@ -42,7 +43,7 @@ Deno.serve(async () => {
   for (const notif of pending) {
     const { data: session } = await supabase
       .from('line_sessions')
-      .select('line_user_id')
+      .select('line_user_id, timezone')
       .eq('user_id', notif.user_id)
       .not('verified_at', 'is', null)
       .single()
@@ -52,8 +53,9 @@ Deno.serve(async () => {
     const event = notif.events as { name: string; detail: string | null; start_at: string } | null
     if (!event) continue
 
+    const timezone = session.timezone ?? 'UTC'
     try {
-      await sendMessage(session.line_user_id, formatMessage(event.name, event.start_at, event.detail))
+      await sendMessage(session.line_user_id, formatMessage(event.name, event.start_at, event.detail, timezone))
       await supabase.from('notification_queue').update({ sent_at: new Date().toISOString() }).eq('id', notif.id)
       sent++
     } catch {
