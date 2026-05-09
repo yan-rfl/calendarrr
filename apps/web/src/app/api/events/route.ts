@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { createEventSchema } from '@/lib/validations/event'
+import { generateNotificationQueue } from '@/lib/notifications'
 
 export async function GET(request: Request) {
   const supabase = await createServerClient()
@@ -30,5 +31,6 @@ export async function POST(request: Request) {
   const { data: event, error } = await supabase
     .from('events').insert({ ...parsed.data, user_id: user.id }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await generateNotificationQueue(supabase, user.id, event.id, event.start_at)
   return NextResponse.json({ event }, { status: 201 })
 }

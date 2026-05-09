@@ -10,6 +10,7 @@ const mockEvent = {
 
 const mockSB = { auth: { getUser: vi.fn() }, from: vi.fn() }
 vi.mock('@/lib/supabase/server', () => ({ createServerClient: async () => mockSB }))
+vi.mock('@/lib/notifications', () => ({ generateNotificationQueue: vi.fn().mockResolvedValue(undefined) }))
 
 const req = (method: string, body?: unknown, qs?: Record<string, string>) => {
   const url = new URL('http://localhost/api/events')
