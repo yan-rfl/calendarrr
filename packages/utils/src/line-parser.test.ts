@@ -156,6 +156,23 @@ describe('create relative', () => {
       expect(result.start_at.getMinutes()).toBe(0)
     }
   })
+  it('parses Today at time 24H', () => {
+    const result = parseWhatsAppMessage('Standup_Today at 13:30', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') {
+      expect(result.name).toBe('Standup')
+      expect(result.start_at.getHours()).toBe(13)
+      expect(result.start_at.getMinutes()).toBe(30)
+    }
+  })
+  it('parses Tomorrow at time 24H', () => {
+    const result = parseWhatsAppMessage('Meeting_Tomorrow at 09:00', NOW)
+    expect(result.type).toBe('create')
+    if (result.type === 'create') {
+      expect(result.start_at.getHours()).toBe(9)
+      expect(result.start_at.getMinutes()).toBe(0)
+    }
+  })
   it('parses Tomorrow at time', () => {
     const result = parseWhatsAppMessage('Meeting_Tomorrow at 9:00 AM', NOW)
     expect(result.type).toBe('create')

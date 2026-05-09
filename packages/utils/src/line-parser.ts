@@ -49,10 +49,10 @@ export function parseLineMessage(text: string, now: Date = new Date(), tzOffsetM
     }
   }
 
-  const todayAt = t.match(/^(.+)_Today at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  const todayAt = t.match(/^(.+)_Today at (\d{1,2}:\d{2})\s*(AM|PM)?$/i)
   if (todayAt) return { type: 'create', name: todayAt[1].trim(), start_at: parseLocalTime(todayAt[2], todayAt[3], now, 0, tzOffsetMs) }
 
-  const tomorrowAt = t.match(/^(.+)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
+  const tomorrowAt = t.match(/^(.+)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)?$/i)
   if (tomorrowAt) return { type: 'create', name: tomorrowAt[1].trim(), start_at: parseLocalTime(tomorrowAt[2], tomorrowAt[3], now, 1, tzOffsetMs) }
 
   const inRelative = t.match(/^(.+)_In (a|\d+)\s+(minutes?|hours?)$/i)
@@ -79,12 +79,12 @@ function parseTimeToHHMM(timeStr: string, meridiem?: string): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 }
 
-function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset: number, tzOffsetMs = 0): Date {
+function parseLocalTime(timeStr: string, meridiem: string | undefined, base: Date, dayOffset: number, tzOffsetMs = 0): Date {
   const [hStr, mStr] = timeStr.split(':')
   let h = parseInt(hStr)
   const m = mStr ? parseInt(mStr) : 0
-  if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12
-  if (meridiem.toUpperCase() === 'AM' && h === 12) h = 0
+  if (meridiem?.toUpperCase() === 'PM' && h !== 12) h += 12
+  if (meridiem?.toUpperCase() === 'AM' && h === 12) h = 0
   const d = new Date(base)
   d.setDate(d.getDate() + dayOffset)
   d.setHours(h, m, 0, 0)
