@@ -5,7 +5,7 @@ function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-export async function GET() {
+export async function GET(_req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

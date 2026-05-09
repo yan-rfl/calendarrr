@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 const schema = z.object({ offsets: z.array(z.number().int()).min(1).max(10) })
 
-export async function GET() {
+export async function GET(_req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
