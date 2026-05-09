@@ -133,6 +133,7 @@ export type Database = {
           line_user_id: string | null
           pending_link_code: string | null
           pending_link_code_expires_at: string | null
+          timezone: string
           user_id: string
           verified_at: string | null
         }
@@ -143,6 +144,7 @@ export type Database = {
           line_user_id?: string | null
           pending_link_code?: string | null
           pending_link_code_expires_at?: string | null
+          timezone?: string
           user_id: string
           verified_at?: string | null
         }
@@ -153,6 +155,7 @@ export type Database = {
           line_user_id?: string | null
           pending_link_code?: string | null
           pending_link_code_expires_at?: string | null
+          timezone?: string
           user_id?: string
           verified_at?: string | null
         }

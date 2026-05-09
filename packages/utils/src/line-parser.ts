@@ -9,7 +9,9 @@ export type ParseResult =
   | { type: 'help' }
   | { type: 'unknown'; raw: string }
 
-export function parseLineMessage(text: string, now: Date = new Date()): ParseResult {
+// tzOffsetMs: user's UTC offset in milliseconds (e.g. UTC+7 Jakarta = 7*3600*1000)
+// Applied to absolute date/time formats only — relative ("In N minutes") is tz-independent.
+export function parseLineMessage(text: string, now: Date = new Date(), tzOffsetMs = 0): ParseResult {
   const t = text.trim()
   const lower = t.toLowerCase()
 
@@ -26,7 +28,7 @@ export function parseLineMessage(text: string, now: Date = new Date()): ParseRes
   const upd = t.match(/^update\s+(.+?)\s+to\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}(?::\d{2})?)\s*(AM|PM)?$/i)
   if (upd) {
     const hhmm = parseTimeToHHMM(upd[3], upd[4])
-    return { type: 'update', name: upd[1].trim(), start_at: new Date(`${upd[2]}T${hhmm}:00`) }
+    return { type: 'update', name: upd[1].trim(), start_at: shiftTz(new Date(`${upd[2]}T${hhmm}:00`), tzOffsetMs) }
   }
 
   const remind = t.match(/^remind\s+(.+?)\s+(\d+)\s+(min(?:utes?)?|hours?)\s+before$/i)
@@ -42,16 +44,16 @@ export function parseLineMessage(text: string, now: Date = new Date()): ParseRes
     return {
       type: 'create',
       name: structured[1].trim(),
-      start_at: new Date(`${structured[2]}T${hhmm}:00`),
+      start_at: shiftTz(new Date(`${structured[2]}T${hhmm}:00`), tzOffsetMs),
       ...(structured[5] ? { detail: structured[5].trim() } : {}),
     }
   }
 
   const todayAt = t.match(/^(.+)_Today at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
-  if (todayAt) return { type: 'create', name: todayAt[1].trim(), start_at: parseLocalTime(todayAt[2], todayAt[3], now, 0) }
+  if (todayAt) return { type: 'create', name: todayAt[1].trim(), start_at: parseLocalTime(todayAt[2], todayAt[3], now, 0, tzOffsetMs) }
 
   const tomorrowAt = t.match(/^(.+)_Tomorrow at (\d{1,2}:\d{2})\s*(AM|PM)$/i)
-  if (tomorrowAt) return { type: 'create', name: tomorrowAt[1].trim(), start_at: parseLocalTime(tomorrowAt[2], tomorrowAt[3], now, 1) }
+  if (tomorrowAt) return { type: 'create', name: tomorrowAt[1].trim(), start_at: parseLocalTime(tomorrowAt[2], tomorrowAt[3], now, 1, tzOffsetMs) }
 
   const inRelative = t.match(/^(.+)_In (a|\d+)\s+(minutes?|hours?)$/i)
   if (inRelative) {
@@ -61,6 +63,10 @@ export function parseLineMessage(text: string, now: Date = new Date()): ParseRes
   }
 
   return { type: 'unknown', raw: t }
+}
+
+function shiftTz(date: Date, tzOffsetMs: number): Date {
+  return tzOffsetMs === 0 ? date : new Date(date.getTime() - tzOffsetMs)
 }
 
 function parseTimeToHHMM(timeStr: string, meridiem?: string): string {
@@ -73,7 +79,7 @@ function parseTimeToHHMM(timeStr: string, meridiem?: string): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 }
 
-function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset: number): Date {
+function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset: number, tzOffsetMs = 0): Date {
   const [hStr, mStr] = timeStr.split(':')
   let h = parseInt(hStr)
   const m = mStr ? parseInt(mStr) : 0
@@ -82,5 +88,5 @@ function parseLocalTime(timeStr: string, meridiem: string, base: Date, dayOffset
   const d = new Date(base)
   d.setDate(d.getDate() + dayOffset)
   d.setHours(h, m, 0, 0)
-  return d
+  return shiftTz(d, tzOffsetMs)
 }

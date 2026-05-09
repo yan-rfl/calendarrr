@@ -1,0 +1,1 @@
+ALTER TABLE line_sessions ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC';

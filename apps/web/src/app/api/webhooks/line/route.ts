@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     // Command flow
     const { data: session } = await supabase
       .from('line_sessions')
-      .select('user_id')
+      .select('user_id, timezone')
       .eq('line_user_id', lineUserId)
       .not('verified_at', 'is', null)
       .single()
@@ -66,13 +66,45 @@ export async function POST(request: Request) {
       continue
     }
 
-    let parsed = parseLineMessage(text)
-    if (parsed.type === 'unknown') parsed = await nlpFallback(text)
+    // Timezone command
+    if (/^tz\s+\S+$/i.test(text)) {
+      await handleSetTimezone(supabase, session.user_id, lineUserId, text.slice(3).trim())
+      continue
+    }
 
-    await executeCommand(supabase, session.user_id, lineUserId, parsed)
+    const tzOffsetMs = getTzOffsetMs(session.timezone ?? 'UTC')
+    let parsed = parseLineMessage(text, new Date(), tzOffsetMs)
+    if (parsed.type === 'unknown') parsed = await nlpFallback(text, tzOffsetMs)
+
+    await executeCommand(supabase, session.user_id, lineUserId, parsed, session.timezone ?? 'UTC')
   }
 
   return NextResponse.json({ ok: true })
+}
+
+function getTzOffsetMs(timezone: string): number {
+  if (timezone === 'UTC') return 0
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+  const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value)
+  const localMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
+  return localMs - now.getTime()
+}
+
+async function handleSetTimezone(supabase: ReturnType<typeof serviceClient>, userId: string, lineUserId: string, tz: string): Promise<void> {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz })
+  } catch {
+    await sendLineMessage(lineUserId, `❌ Unknown timezone "${tz}".\nExamples: Asia/Jakarta, Asia/Bangkok, Asia/Tokyo, Europe/London`)
+    return
+  }
+  await supabase.from('line_sessions').update({ timezone: tz }).eq('user_id', userId)
+  await sendLineMessage(lineUserId, `✅ Timezone set to ${tz}\n\nYour times will now be treated as local time.`)
 }
 
 async function handleLinkCode(supabase: ReturnType<typeof serviceClient>, lineUserId: string, code: string): Promise<void> {
@@ -96,10 +128,10 @@ async function handleLinkCode(supabase: ReturnType<typeof serviceClient>, lineUs
     pending_link_code_expires_at: null,
   }).eq('user_id', session.user_id)
 
-  await sendLineMessage(lineUserId, '✅ Account linked! Send *help* to see available commands.')
+  await sendLineMessage(lineUserId, '✅ Account linked!\n\nSend your timezone next so times work correctly:\ntz Asia/Jakarta\n\nOr send help to see all commands.')
 }
 
-async function nlpFallback(text: string): Promise<ParseResult> {
+async function nlpFallback(text: string, tzOffsetMs = 0): Promise<ParseResult> {
   try {
     const client = new Anthropic()
     const msg = await client.messages.create({
@@ -121,7 +153,7 @@ Today's date: ${new Date().toISOString().slice(0, 10)}`,
       }],
     })
     const reply = (msg.content[0] as { text: string }).text.trim()
-    return parseLineMessage(reply)
+    return parseLineMessage(reply, new Date(), tzOffsetMs)
   } catch {
     return { type: 'unknown', raw: text }
   }
@@ -129,7 +161,7 @@ Today's date: ${new Date().toISOString().slice(0, 10)}`,
 
 type SB = ReturnType<typeof serviceClient>
 
-async function executeCommand(supabase: SB, userId: string, lineUserId: string, parsed: ParseResult): Promise<void> {
+async function executeCommand(supabase: SB, userId: string, lineUserId: string, parsed: ParseResult, timezone: string): Promise<void> {
   switch (parsed.type) {
     case 'help': {
       await sendLineMessage(lineUserId, [
@@ -158,6 +190,10 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
         'delete Name',
         'remind Name 30 min before',
         'remind Name 1 hour before',
+        '',
+        '━━━━━━━━━━━━━━━━━━━━',
+        '⚙️ SETTINGS',
+        'tz Asia/Jakarta — set your timezone',
       ].join('\n'))
       break
     }
@@ -169,7 +205,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
       const { data: events } = await supabase.from('events').select('name, start_at')
         .eq('user_id', userId).gte('start_at', from).lt('start_at', to).order('start_at')
       const msg = events?.length
-        ? events.map(e => `• ${e.name} at ${new Date(e.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`).join('\n')
+        ? events.map(e => `• ${e.name} at ${new Date(e.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone })} `).join('\n')
         : 'No events today.'
       await sendLineMessage(lineUserId, `📅 Today's events:\n${msg}`)
       break
@@ -181,7 +217,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
       const { data: events } = await supabase.from('events').select('name, start_at')
         .eq('user_id', userId).gte('start_at', from).lte('start_at', to).order('start_at')
       const msg = events?.length
-        ? events.map(e => `• ${e.name} at ${new Date(e.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`).join('\n')
+        ? events.map(e => `• ${e.name} at ${new Date(e.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone })}`).join('\n')
         : `No events on ${parsed.date}.`
       await sendLineMessage(lineUserId, `📅 Events on ${parsed.date}:\n${msg}`)
       break
@@ -193,7 +229,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
       const msg = events?.length
         ? events.map(e => {
             const d = new Date(e.start_at)
-            return `• ${e.name} — ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+            return `• ${e.name} — ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone })}`
           }).join('\n')
         : 'No upcoming events.'
       await sendLineMessage(lineUserId, `📅 Upcoming events:\n${msg}`)
@@ -211,7 +247,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
       if (error || !event) { await sendLineMessage(lineUserId, '❌ Failed to create event.'); break }
       await generateNotificationQueue(supabase, userId, event.id, event.start_at)
       const d = new Date(event.start_at)
-      await sendLineMessage(lineUserId, `✅ Created: ${event.name}\n📅 ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`)
+      await sendLineMessage(lineUserId, `✅ Created: ${event.name}\n📅 ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone })}`)
       break
     }
 
