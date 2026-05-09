@@ -125,6 +125,39 @@ export type Database = {
         }
         Relationships: []
       }
+      line_sessions: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          line_user_id: string | null
+          pending_link_code: string | null
+          pending_link_code_expires_at: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          line_user_id?: string | null
+          pending_link_code?: string | null
+          pending_link_code_expires_at?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          line_user_id?: string | null
+          pending_link_code?: string | null
+          pending_link_code_expires_at?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       notification_queue: {
         Row: {
           channel: string
@@ -231,36 +264,6 @@ export type Database = {
           suggested_name?: string
           suggested_start?: string | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      whatsapp_sessions: {
-        Row: {
-          created_at: string
-          id: string
-          pending_otp: string | null
-          pending_otp_expires_at: string | null
-          phone_number: string
-          user_id: string
-          verified_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          pending_otp?: string | null
-          pending_otp_expires_at?: string | null
-          phone_number: string
-          user_id: string
-          verified_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          pending_otp?: string | null
-          pending_otp_expires_at?: string | null
-          phone_number?: string
-          user_id?: string
-          verified_at?: string | null
         }
         Relationships: []
       }
