@@ -34,20 +34,22 @@ export async function POST(request: Request) {
     const meta = (conn.sync_metadata ?? {}) as { historyId?: string; watchExpiry?: string }
     const storedHistoryId = meta.historyId ?? newHistoryId
 
-    console.log('[gmail webhook] pubsub historyId:', newHistoryId, 'stored historyId:', storedHistoryId)
+    // If Pub/Sub delivers out of order, query from whichever historyId is earlier
+    const queryHistoryId = Number(storedHistoryId) <= Number(newHistoryId)
+      ? storedHistoryId
+      : String(Number(newHistoryId) - 1)
 
     let accessToken = conn.access_token!
     let messageIds: string[]
     try {
-      messageIds = await getGmailHistory(accessToken, storedHistoryId)
-      console.log('[gmail webhook] messageIds from history:', messageIds)
+      messageIds = await getGmailHistory(accessToken, queryHistoryId)
     } catch (err) {
       const is401 = err instanceof Error && err.message.includes('401')
       if (!is401 || !conn.refresh_token) return new Response('ok', { status: 200 })
       accessToken = await refreshAccessToken(conn.refresh_token)
       await supabase.from('email_connections').update({ access_token: accessToken })
         .eq('user_id', conn.user_id).eq('provider', 'gmail')
-      messageIds = await getGmailHistory(accessToken, storedHistoryId)
+      messageIds = await getGmailHistory(accessToken, queryHistoryId)
     }
 
     for (const messageId of messageIds) {
@@ -87,7 +89,8 @@ export async function POST(request: Request) {
       })
     }
 
-    const newMeta: Record<string, string> = { ...meta, historyId: newHistoryId }
+    // Always advance to the higher historyId — never go backwards
+    const newMeta: Record<string, string> = { ...meta, historyId: String(Math.max(Number(storedHistoryId), Number(newHistoryId))) }
 
     if (meta.watchExpiry && new Date(meta.watchExpiry).getTime() - Date.now() < 2 * 24 * 3600 * 1000) {
       const renewed = await registerGmailWatch(accessToken).catch(() => null)
