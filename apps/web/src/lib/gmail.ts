@@ -52,6 +52,8 @@ export async function getGmailHistory(accessToken: string, startHistoryId: strin
   if (res.status === 404) return [] // historyId too old — no messages to replay
   if (!res.ok) throw new Error(`History API failed: ${res.status}`)
   const data = await res.json()
+  console.log('[gmail history] currentHistoryId:', data.historyId, 'records:', (data.history ?? []).length)
+  if (data.history) console.log('[gmail history] record types:', (data.history as Record<string, unknown>[]).map(r => Object.keys(r).join(',')).join(' | '))
   const ids: string[] = []
   for (const record of (data.history ?? []) as Record<string, unknown>[]) {
     for (const msg of ((record.messagesAdded ?? []) as Record<string, unknown>[])) {
