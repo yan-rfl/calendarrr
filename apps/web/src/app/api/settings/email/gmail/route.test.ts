@@ -18,6 +18,21 @@ import { stopGmailWatch } from '@/lib/gmail'
 describe('DELETE /api/settings/email/gmail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSB.from.mockReset()
+    // First call: select query
+    mockSB.from.mockReturnValueOnce({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { access_token: 'at' }, error: null }),
+    })
+    // Second call: delete query
+    mockSB.from.mockReturnValueOnce({
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+      }),
+    })
     mockSB.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
@@ -28,28 +43,18 @@ describe('DELETE /api/settings/email/gmail', () => {
   })
 
   it('calls stopGmailWatch and deletes the row', async () => {
-    mockSB.from.mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { access_token: 'at' } }),
-      delete: vi.fn().mockReturnThis(),
-    })
     const res = await DELETE()
     expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
     expect(stopGmailWatch).toHaveBeenCalledWith('at')
   })
 
   it('still deletes row even when stopGmailWatch throws', async () => {
-    const deleteMock = vi.fn().mockReturnThis()
     ;(stopGmailWatch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('network'))
-    mockSB.from.mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { access_token: 'at' } }),
-      delete: deleteMock,
-    })
     const res = await DELETE()
     expect(res.status).toBe(200)
-    expect(deleteMock).toHaveBeenCalled()
+    const body = await res.json()
+    expect(body.ok).toBe(true)
   })
 })

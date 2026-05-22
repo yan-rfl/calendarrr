@@ -18,11 +18,13 @@ export async function DELETE() {
     try { await stopGmailWatch(conn.access_token) } catch { /* best-effort */ }
   }
 
-  await supabase
+  const { error: deleteError } = await supabase
     .from('email_connections')
     .delete()
     .eq('user_id', user.id)
     .eq('provider', 'gmail')
+
+  if (deleteError) return NextResponse.json({ error: 'Failed to disconnect' }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }
