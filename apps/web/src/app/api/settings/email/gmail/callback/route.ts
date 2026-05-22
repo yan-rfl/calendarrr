@@ -33,15 +33,25 @@ export async function GET(request: Request) {
   })
   if (!tokenRes.ok) return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
   const tokens = await tokenRes.json()
+  if (!tokens.access_token) return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
 
   const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
+  if (!userinfoRes.ok) return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
   const userinfo = await userinfoRes.json()
+  if (!userinfo.email) return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
 
-  const { historyId, expiry } = await registerGmailWatch(tokens.access_token)
+  let historyId: string, expiry: string
+  try {
+    const watch = await registerGmailWatch(tokens.access_token)
+    historyId = watch.historyId
+    expiry = watch.expiry
+  } catch {
+    return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
+  }
 
-  await supabase.from('email_connections').upsert(
+  const { error: upsertError } = await supabase.from('email_connections').upsert(
     {
       user_id: user.id,
       provider: 'gmail',
@@ -52,6 +62,7 @@ export async function GET(request: Request) {
     },
     { onConflict: 'user_id,provider' },
   )
+  if (upsertError) return NextResponse.redirect(`${url.origin}/settings?error=oauth_failed`)
 
   return NextResponse.redirect(`${url.origin}/settings?connected=gmail`)
 }

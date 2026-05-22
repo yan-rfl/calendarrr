@@ -58,4 +58,20 @@ describe('GET /api/settings/email/gmail/callback', () => {
       expect.objectContaining({ onConflict: 'user_id,provider' }),
     )
   })
+
+  it('redirects to /settings?error=oauth_failed when userinfo fetch fails', async () => {
+    mockFetch
+      .mockReset()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'at', refresh_token: 'rt' }) })
+      .mockResolvedValueOnce({ ok: false })
+    const res = await GET(req())
+    expect(res.headers.get('location')).toContain('error=oauth_failed')
+  })
+
+  it('redirects to /settings?error=oauth_failed when registerGmailWatch throws', async () => {
+    const { registerGmailWatch } = await import('@/lib/gmail')
+    ;(registerGmailWatch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('watch failed'))
+    const res = await GET(req())
+    expect(res.headers.get('location')).toContain('error=oauth_failed')
+  })
 })
