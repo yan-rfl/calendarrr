@@ -67,7 +67,7 @@ describe('parseICS', () => {
     const result = parseICS(ICS_TZID)
     expect(result).not.toBeNull()
     expect(result!.name).toBe('Call')
-    expect(result!.start_at.getUTCHours()).toBe(16)
+    expect(result!.start_at.getUTCHours()).toBe(9) // 16:00 Jakarta (UTC+7) = 09:00 UTC
   })
 
   it('unescapes \\n and \\, in description', () => {
