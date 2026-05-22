@@ -26,6 +26,7 @@ export type Database = {
           last_synced_at: string | null
           provider: string
           refresh_token: string | null
+          sync_metadata: Json | null
           user_id: string
         }
         Insert: {
@@ -39,6 +40,7 @@ export type Database = {
           last_synced_at?: string | null
           provider: string
           refresh_token?: string | null
+          sync_metadata?: Json | null
           user_id: string
         }
         Update: {
@@ -52,6 +54,7 @@ export type Database = {
           last_synced_at?: string | null
           provider?: string
           refresh_token?: string | null
+          sync_metadata?: Json | null
           user_id?: string
         }
         Relationships: []
