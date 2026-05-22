@@ -34,10 +34,13 @@ export async function POST(request: Request) {
     const meta = (conn.sync_metadata ?? {}) as { historyId?: string; watchExpiry?: string }
     const storedHistoryId = meta.historyId ?? newHistoryId
 
+    console.log('[gmail webhook] pubsub historyId:', newHistoryId, 'stored historyId:', storedHistoryId)
+
     let accessToken = conn.access_token!
     let messageIds: string[]
     try {
       messageIds = await getGmailHistory(accessToken, storedHistoryId)
+      console.log('[gmail webhook] messageIds from history:', messageIds)
     } catch (err) {
       const is401 = err instanceof Error && err.message.includes('401')
       if (!is401 || !conn.refresh_token) return new Response('ok', { status: 200 })
