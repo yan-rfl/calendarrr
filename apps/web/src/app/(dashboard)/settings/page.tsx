@@ -12,6 +12,12 @@ type LineStatus =
   | { state: 'unlinked'; code: string; addFriendUrl: string }
   | { state: 'error' }
 
+type GmailStatus =
+  | { state: 'loading' }
+  | { state: 'connected'; email: string }
+  | { state: 'disconnected' }
+  | { state: 'error' }
+
 export default function SettingsPage() {
   const [lineStatus, setLineStatus] = useState<LineStatus>({ state: 'loading' })
 
@@ -31,6 +37,36 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => { fetchLineStatus() }, [fetchLineStatus])
+
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus>({ state: 'loading' })
+
+  const fetchGmailStatus = useCallback(async () => {
+    setGmailStatus({ state: 'loading' })
+    try {
+      const res = await fetch('/api/settings/email/status')
+      const data = await res.json()
+      if (data.gmail?.connected) {
+        setGmailStatus({ state: 'connected', email: data.gmail.email })
+      } else {
+        setGmailStatus({ state: 'disconnected' })
+      }
+    } catch {
+      setGmailStatus({ state: 'error' })
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchGmailStatus()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('connected') === 'gmail') {
+      window.history.replaceState({}, '', '/settings')
+    }
+  }, [fetchGmailStatus])
+
+  async function disconnectGmail() {
+    await fetch('/api/settings/email/gmail', { method: 'DELETE' })
+    fetchGmailStatus()
+  }
 
   const [offsets, setOffsets] = useState<number[]>([-15, -60])
   const [saved, setSaved] = useState(false)
@@ -96,6 +132,38 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <p className="text-sm text-destructive">Failed to load LINE status.</p>
               <Button variant="outline" size="sm" onClick={fetchLineStatus}>Retry</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Email Sync</CardTitle>
+          <CardDescription>Connect Gmail to auto-import calendar invites (ICS attachments).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {gmailStatus.state === 'loading' && (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          )}
+          {gmailStatus.state === 'connected' && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600 font-medium">✓ Connected</span>
+                <span className="text-sm text-muted-foreground">{gmailStatus.email}</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={disconnectGmail}>Disconnect</Button>
+            </div>
+          )}
+          {gmailStatus.state === 'disconnected' && (
+            <a href="/api/settings/email/gmail/connect">
+              <Button variant="outline">Connect Gmail</Button>
+            </a>
+          )}
+          {gmailStatus.state === 'error' && (
+            <div className="space-y-2">
+              <p className="text-sm text-destructive">Failed to load Gmail status.</p>
+              <Button variant="outline" size="sm" onClick={fetchGmailStatus}>Retry</Button>
             </div>
           )}
         </CardContent>
