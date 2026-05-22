@@ -310,7 +310,7 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
     }
 
     case 'unknown': {
-      await sendLineMessage(lineUserId, "❓ I didn't understand that. Send 'help' to see available commands.")
+      await sendLineMessage(lineUserId, "❓ I didn't understand that. Send '/help' to see available commands.")
       break
     }
   }
