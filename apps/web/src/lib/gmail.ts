@@ -13,6 +13,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
   })
   if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`)
   const data = await res.json()
+  if (!data.access_token) throw new Error('Token refresh returned no access_token')
   return data.access_token as string
 }
 
@@ -27,17 +28,20 @@ export async function registerGmailWatch(accessToken: string): Promise<{ history
   })
   if (!res.ok) throw new Error(`Gmail watch failed: ${res.status}`)
   const data = await res.json()
+  const expiration = parseInt(data.expiration)
+  if (isNaN(expiration)) throw new Error('Gmail watch: missing or invalid expiration')
   return {
     historyId: String(data.historyId),
-    expiry: new Date(parseInt(data.expiration)).toISOString(),
+    expiry: new Date(expiration).toISOString(),
   }
 }
 
 export async function stopGmailWatch(accessToken: string): Promise<void> {
-  await fetch(`${GMAIL_API}/users/me/stop`, {
+  const res = await fetch(`${GMAIL_API}/users/me/stop`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
   })
+  if (!res.ok) throw new Error(`Gmail stop-watch failed: ${res.status}`)
 }
 
 export async function getGmailHistory(accessToken: string, startHistoryId: string): Promise<string[]> {
@@ -65,7 +69,8 @@ export async function getICSFromMessage(
   const res = await fetch(`${GMAIL_API}/users/me/messages/${messageId}?format=full`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
-  if (!res.ok) return null
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch message ${messageId}: ${res.status}`)
   const message = await res.json()
   const ics = findICSPart(message.payload as Record<string, unknown>)
   if (!ics) return null
