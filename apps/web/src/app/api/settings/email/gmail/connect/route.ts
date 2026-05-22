@@ -8,9 +8,13 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return NextResponse.json({ error: 'OAuth not configured' }, { status: 500 })
+  }
+
   const state = crypto.randomBytes(16).toString('hex')
   const cookieStore = await cookies()
-  cookieStore.set('oauth_state', state, { httpOnly: true, secure: true, maxAge: 600, path: '/' })
+  cookieStore.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600, path: '/' })
 
   const origin = new URL(request.url).origin
   const params = new URLSearchParams({

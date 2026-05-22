@@ -14,8 +14,8 @@ const req = (url = 'http://localhost:3000/api/settings/email/gmail/connect') =>
 
 describe('GET /api/settings/email/gmail/connect', () => {
   beforeEach(() => {
-    mockSB.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     vi.clearAllMocks()
+    mockSB.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
   it('returns 401 when unauthenticated', async () => {
