@@ -7,6 +7,7 @@ vi.mock('@/lib/supabase/server', () => ({ createServerClient: async () => mockSB
 describe('GET /api/settings/email/status', () => {
   beforeEach(() => {
     mockSB.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockSB.from.mockReset()
   })
 
   it('returns 401 when unauthenticated', async () => {
@@ -37,5 +38,14 @@ describe('GET /api/settings/email/status', () => {
     const res = await GET()
     const body = await res.json()
     expect(body.gmail.connected).toBe(false)
+  })
+
+  it('returns 500 when database query fails', async () => {
+    mockSB.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'db error' } }),
+    })
+    const res = await GET()
+    expect(res.status).toBe(500)
   })
 })
