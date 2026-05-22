@@ -140,13 +140,13 @@ async function nlpFallback(text: string, tzOffsetMs = 0): Promise<ParseResult> {
       messages: [{
         role: 'user',
         content: `Convert this calendar request to a structured command. Reply with ONLY one of these exact formats (no explanation):
-- Name_YYYY-MM-DD HH:MM
-- Name_YYYY-MM-DD HH:MM_Detail
-- delete Name
-- update Name to YYYY-MM-DD HH:MM
-- today
-- upcoming
-- help
+- /create Name_YYYY-MM-DD HH:MM
+- /create Name_YYYY-MM-DD HH:MM_Detail
+- /delete Name
+- /update Name to YYYY-MM-DD HH:MM
+- /today
+- /upcoming
+- /help
 
 Message: "${text}"
 Today's date: ${new Date().toISOString().slice(0, 10)}`,
@@ -169,30 +169,35 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
         '━━━━━━━━━━━━━━━━━━━━',
         '',
         '📝 CREATE EVENT',
+        '/create Name_2026-05-10 13:00',
+        '/create Name_2026-05-10 1:00 PM',
+        '/create Name_2026-05-10 1 PM',
+        '/create Name_2026-05-10 13:00_Detail',
+        '/create Name_Today at 13:30',
+        '/create Name_Today at 2:30 PM',
+        '/create Name_Tomorrow at 09:00',
+        '/create Name_Tomorrow at 9:00 AM',
+        '/create Name_In 30 minutes',
+        '/create Name_In 2 hours',
+        '/create Name_In a minute',
+        '',
+        '📝 CREATE MULTIPLE',
+        '/create-list',
         'Name_2026-05-10 13:00',
-        'Name_2026-05-10 1:00 PM',
-        'Name_2026-05-10 1 PM',
-        'Name_2026-05-10 13:00_Detail',
-        'Name_Today at 13:30',
-        'Name_Today at 2:30 PM',
-        'Name_Tomorrow at 09:00',
         'Name_Tomorrow at 9:00 AM',
-        'Name_In 30 minutes',
-        'Name_In 2 hours',
-        'Name_In a minute',
         '',
         '━━━━━━━━━━━━━━━━━━━━',
         '📋 VIEW EVENTS',
-        'today',
-        'upcoming',
-        'list 2026-05-10',
+        '/today',
+        '/upcoming',
+        '/list 2026-05-10',
         '',
         '━━━━━━━━━━━━━━━━━━━━',
         '✏️ MANAGE EVENTS',
-        'update Name to 2026-05-10 13:00',
-        'delete Name',
-        'remind Name 30 min before',
-        'remind Name 1 hour before',
+        '/update Name to 2026-05-10 13:00',
+        '/delete Name',
+        '/remind Name 30 min before',
+        '/remind Name 1 hour before',
         '',
         '━━━━━━━━━━━━━━━━━━━━',
         '⚙️ SETTINGS',
@@ -236,6 +241,27 @@ async function executeCommand(supabase: SB, userId: string, lineUserId: string, 
           }).join('\n')
         : 'No upcoming events.'
       await sendLineMessage(lineUserId, `📅 Upcoming events:\n${msg}`)
+      break
+    }
+
+    case 'create_list': {
+      const created: string[] = []
+      for (const e of parsed.events) {
+        const { data: event, error } = await supabase.from('events').insert({
+          user_id: userId,
+          name: e.name,
+          start_at: e.start_at.toISOString(),
+          detail: e.detail ?? null,
+          source: 'line',
+        }).select().single()
+        if (error || !event) continue
+        await generateNotificationQueue(supabase, userId, event.id, event.start_at)
+        const d = new Date(event.start_at)
+        created.push(`• ${event.name} — ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone })}`)
+      }
+      await sendLineMessage(lineUserId, created.length
+        ? `✅ Created ${created.length} event${created.length > 1 ? 's' : ''}:\n${created.join('\n')}`
+        : '❌ No valid events found in the list.')
       break
     }
 
