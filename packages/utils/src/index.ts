@@ -12,3 +12,6 @@ export function formatEventTime(isoDate: string): string {
 
 export { parseLineMessage } from './line-parser'
 export type { ParseResult } from './line-parser'
+
+export { parseICS } from './ics-parser'
+export type { ICSEvent } from './ics-parser'
