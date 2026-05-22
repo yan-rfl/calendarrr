@@ -47,7 +47,6 @@ export async function stopGmailWatch(accessToken: string): Promise<void> {
 export async function getGmailHistory(accessToken: string, startHistoryId: string): Promise<string[]> {
   const url = new URL(`${GMAIL_API}/users/me/history`)
   url.searchParams.set('startHistoryId', startHistoryId)
-  url.searchParams.set('historyTypes', 'messageAdded')
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
   if (res.status === 404) return [] // historyId too old — no messages to replay
   if (!res.ok) throw new Error(`History API failed: ${res.status}`)
