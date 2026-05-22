@@ -38,8 +38,9 @@ export async function POST(request: Request) {
     let messageIds: string[]
     try {
       messageIds = await getGmailHistory(accessToken, storedHistoryId)
-    } catch {
-      if (!conn.refresh_token) return new Response('ok', { status: 200 })
+    } catch (err) {
+      const is401 = err instanceof Error && err.message.includes('401')
+      if (!is401 || !conn.refresh_token) return new Response('ok', { status: 200 })
       accessToken = await refreshAccessToken(conn.refresh_token)
       await supabase.from('email_connections').update({ access_token: accessToken })
         .eq('user_id', conn.user_id).eq('provider', 'gmail')
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
 
     if (meta.watchExpiry && new Date(meta.watchExpiry).getTime() - Date.now() < 2 * 24 * 3600 * 1000) {
       const renewed = await registerGmailWatch(accessToken).catch(() => null)
-      if (renewed) { newMeta.historyId = renewed.historyId; newMeta.watchExpiry = renewed.expiry }
+      if (renewed) { newMeta.watchExpiry = renewed.expiry }
     }
 
     await supabase.from('email_connections')
